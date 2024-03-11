@@ -1,5 +1,5 @@
 #    MTUOC-clean-parallel-corpus
-#    Copyright (C) 2020  Antoni Oliver
+#    Copyright (C) 2024  Antoni Oliver
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,27 @@ def percentLET(segment):
     percent=100*nl/len(segment)
     return percent
     
+def percentURLPC(segment):
+    lenseg=len(segment)
+    urls=findURLs(segment)
+    if len(urls)==0:
+        percent=0
+        return(percent)
+    else:
+        segmentNOURL=segment
+        lenURLs=0
+        for url in urls:
+            lenURLs+=len(url)
+        percent=100*lenURLs/lenseg
+        return(percent)
+    
+def findURLs(text):
+    # Regular expression for identifying URLs
+    url_pattern = re.compile(r'https?://\S+|www\.\S+')
+    # Find all matches using the regular expression
+    matches = re.findall(url_pattern, text)
+    return(matches)
+    
 def escapeforMoses(segment):
     segment=segment.replace("[","&lbrack;")
     segment=segment.replace("]","&rbrack;")    
@@ -110,6 +131,8 @@ parser.add_argument('--remove_empty', action='store_true', default=False, dest='
 parser.add_argument('--remove_short', action='store', default=False, dest='remove_short',help='Removes segments with less than the given number of characters.')
 parser.add_argument('--remove_equal', action='store_true', default=False, dest='remove_equal',help='Removes segments with equal SL or TL segments.')
 parser.add_argument('--remove_NUMPC', action='store', default=False, dest='remove_NUMPC',help='Removes segments with a percent of numbers higher than the given.')
+parser.add_argument('--remove_URLPC', action='store', default=False, dest='remove_URLPC',help='Removes segments with a percent of URLs higher than the given.')
+parser.add_argument('--remove_URL', action='store_true', default=False, dest='remove_URL',help='Removes segments with URLs.')
 parser.add_argument('--escapeforMoses', action='store_true', default=False, dest='escapeforMoses',help='Replaces [ ] and | with entities.')
 parser.add_argument('--stringFromFile', action='store', default=False, dest='stringFromFile',help='Removes segments containing strings from the given file (one string per line).')
 parser.add_argument('--regexFromFile', action='store', default=False, dest='regexFromFile',help='Removes segments matching regular expressions from the given file (one regular expression per line).')
@@ -130,12 +153,13 @@ if args.all:
     args.unescape_html=True
     args.fixencoding=True
     args.remove_empty=True
-    args.remove_short=10
-    args.remove_NUMPC=60
+    #args.remove_short=10
+    #args.remove_NUMPC=60
     args.remove_equal=True
     args.escapeforMoses=True
     if not args.remove_NUMPC: args.remove_NUMPC=60
     if not args.remove_short: args.remove_short=5
+    if not args.remove_URLPC: args.remove_URLPC=10
 entrada=codecs.open(args.inputfile,"r",encoding="utf-8")
 sortida=codecs.open(args.outputfile,"w",encoding="utf-8")
 
@@ -200,6 +224,20 @@ for linia in entrada:
             toWrite=False
         elif percentNUM(tlsegment)>=float(args.remove_NUMPC):
             toWrite=False
+            
+    if args.remove_URLPC and toWrite:
+        if percentURLPC(slsegment)>=float(args.remove_NUMPC):
+            toWrite=False
+        elif percentURLPC(tlsegment)>=float(args.remove_NUMPC):
+            toWrite=False
+    if args.remove_URL and toWrite:
+        urlsSL=findURLs(slsegment)
+        urlsTL=findURLs(tlsegment)
+        if len(urlsSL)>0 or len(urlsTL)>0:
+            toWrite=False
+        
+        
+            
     if args.escapeforMoses and toWrite:
         slsegment=escapeforMoses(slsegment)
         tlsegment=escapeforMoses(tlsegment)
