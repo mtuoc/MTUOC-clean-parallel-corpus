@@ -116,12 +116,21 @@ def escapeforMoses(segment):
 
 def remove_control_characters(cadena):
     return rx.sub(r'\p{C}', '', cadena)
+    
+def is_printable(char):
+    category = unicodedata.category(char)
+    return not (category.startswith('C') or category in ['Zl', 'Zp', 'Cc'])
+
+def remove_non_printable(string):
+    cleaned_string = ''.join(c for c in string if is_printable(c))
+    return(repr(cleaned_string))
 
 parser = argparse.ArgumentParser(description='MTUOC program for cleaning tab separated parallel corpora.')
 parser.add_argument('-i','--in', action="store", dest="inputfile", help='The input file.',required=True)
 parser.add_argument('-o','--out', action="store", dest="outputfile", help='The output file.',required=True)
 parser.add_argument('-a','--all', action="store_true", dest="all", help='Performs default cleaning actions.')
 parser.add_argument('--remove_control_characters', action='store_true', default=False, dest='remove_control_characters',help='Remove control characters.')
+parser.add_argument('--remove_non_printable', action='store_true', default=False, dest='remove_non_printable',help='Remove control characters.')
 parser.add_argument('--norm_apos', action='store_true', default=False, dest='norm_apos',help='Normalize apostrophes.')
 parser.add_argument('--norm_unicode', action='store_true', default=False, dest='norm_unicode',help='Normalize unicode characters to NFKC.')
 parser.add_argument('--remove_tags', action='store_true', default=False, dest='remove_tags',help='Removes html/XML tags.')
@@ -147,6 +156,7 @@ args = parser.parse_args()
 
 if args.all:
     args.remove_control_characters=True
+    args.remove_non_printable=True
     args.norm_apos=True
     args.norm_unicode=True
     args.remove_tags=True
@@ -194,7 +204,10 @@ for linia in entrada:
         tlsegment=camps[1]
     if args.remove_control_characters:
         slsegment=remove_control_characters(slsegment)
-        tlsegment=remove_control_characters(tlsegment)    
+        tlsegment=remove_control_characters(tlsegment) 
+    if args.remove_non_printable:
+        slsegment=remove_non_printable(slsegment)
+        tlsegment=remove_non_printable(tlsegment)
     if args.unescape_html and toWrite:
         slsegment=unescape_html(slsegment)
         tlsegment=unescape_html(tlsegment)
