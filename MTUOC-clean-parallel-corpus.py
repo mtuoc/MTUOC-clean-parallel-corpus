@@ -163,10 +163,7 @@ if args.all:
     args.unescape_html=True
     args.fixencoding=True
     args.remove_empty=True
-    #args.remove_short=10
-    #args.remove_NUMPC=60
     args.remove_equal=True
-    args.escapeforMoses=True
     if not args.remove_NUMPC: args.remove_NUMPC=60
     if not args.remove_short: args.remove_short=5
     if not args.remove_URLPC: args.remove_URLPC=10
