@@ -123,7 +123,7 @@ def is_printable(char):
 
 def remove_non_printable(string):
     cleaned_string = ''.join(c for c in string if is_printable(c))
-    return(repr(cleaned_string))
+    return(cleaned_string)
 
 parser = argparse.ArgumentParser(description='MTUOC program for cleaning tab separated parallel corpora.')
 parser.add_argument('-i','--in', action="store", dest="inputfile", help='The input file.',required=True)
