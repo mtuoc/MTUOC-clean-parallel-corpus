@@ -157,7 +157,7 @@ args = parser.parse_args()
 if args.all:
     args.remove_control_characters=True
     args.remove_non_printable=True
-    args.norm_apos=True
+    #args.norm_apos=True
     args.norm_unicode=True
     args.remove_tags=True
     args.unescape_html=True
