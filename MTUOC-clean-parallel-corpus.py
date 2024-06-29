@@ -135,6 +135,13 @@ def is_printable(char):
 def remove_non_printable(string):
     cleaned_string = ''.join(c for c in string if is_printable(c))
     return(cleaned_string)
+    
+def is_valid_float(s):
+    try:
+        float(s)
+        return(True)
+    except ValueError:
+        return(False)
 
 parser = argparse.ArgumentParser(description='MTUOC program for cleaning tab separated parallel corpora.')
 parser.add_argument('-i','--in', action="store", dest="inputfile", help='The input file.',required=True)
@@ -155,6 +162,7 @@ parser.add_argument('--remove_URLPC', action='store', default=False, dest='remov
 parser.add_argument('--remove_URL', action='store_true', default=False, dest='remove_URL',help='Removes segments with URLs.')
 parser.add_argument('--remove_long', action='store', dest='remove_long', type=int, help='Removes segments with more characters than the given number.')
 parser.add_argument('--remove_non_latin', action='store_true', dest='remove_non_latin', help='Removes chars outside the latin extended.')
+parser.add_argument('--check_weights', action='store_true', dest='check_weights', help='Removes segments not having a valid weight.')
 
 parser.add_argument('--escapeforMoses', action='store_true', default=False, dest='escapeforMoses',help='Replaces [ ] and | with entities.')
 parser.add_argument('--stringFromFile', action='store', default=False, dest='stringFromFile',help='Removes segments containing strings from the given file (one string per line).')
@@ -236,6 +244,9 @@ for linia in entrada:
     if args.norm_unicode and toWrite:
         slsegment=unicodedata.normalize("NFKC", slsegment)
         tlsegment=unicodedata.normalize("NFKC", tlsegment)
+    if args.check_weights and toWrite:
+        if len(camps)<3 or not is_valid_float(camps[2]):
+            toWrite=False
         
     if args.remove_non_latin:
         slsegment=remove_non_latin_extended_chars(slsegment)
