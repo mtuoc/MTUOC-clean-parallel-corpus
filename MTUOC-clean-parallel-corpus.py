@@ -28,6 +28,17 @@ from ftfy import fix_encoding
 import unicodedata
 
 
+def remove_non_latin_extended_chars(text):
+    # Define the pattern to match only allowed characters
+    # This includes basic Latin letters, Latin Extended characters, spaces, and common punctuation marks
+    pattern = re.compile(r'[^A-Za-z\u00C0-\u00FF\u0100-\u024F\u1E00-\u1EFF\uA720-\uA7FF\s.,;!?\'"()\-]')
+    
+    # Substitute non-matching characters with an empty string
+    cleaned_text = pattern.sub('', text)
+    
+    return cleaned_text
+
+
 def remove_tags(segment):
     segmentnotags=re.sub('<[^>]+>',' ',segment).strip()
     segmentnotags=re.sub(' +', ' ', segmentnotags)
@@ -142,6 +153,9 @@ parser.add_argument('--remove_equal', action='store_true', default=False, dest='
 parser.add_argument('--remove_NUMPC', action='store', default=False, dest='remove_NUMPC',help='Removes segments with a percent of numbers higher than the given.')
 parser.add_argument('--remove_URLPC', action='store', default=False, dest='remove_URLPC',help='Removes segments with a percent of URLs higher than the given.')
 parser.add_argument('--remove_URL', action='store_true', default=False, dest='remove_URL',help='Removes segments with URLs.')
+parser.add_argument('--remove_long', action='store', dest='remove_long', type=int, help='Removes segments with more characters than the given number.')
+parser.add_argument('--remove_non_latin', action='store_true', dest='remove_non_latin', help='Removes chars outside the latin extended.')
+
 parser.add_argument('--escapeforMoses', action='store_true', default=False, dest='escapeforMoses',help='Replaces [ ] and | with entities.')
 parser.add_argument('--stringFromFile', action='store', default=False, dest='stringFromFile',help='Removes segments containing strings from the given file (one string per line).')
 parser.add_argument('--regexFromFile', action='store', default=False, dest='regexFromFile',help='Removes segments matching regular expressions from the given file (one regular expression per line).')
@@ -169,6 +183,11 @@ if args.all:
     if not args.remove_URLPC: args.remove_URLPC=10
 entrada=codecs.open(args.inputfile,"r",encoding="utf-8")
 sortida=codecs.open(args.outputfile,"w",encoding="utf-8")
+
+to_remove_long=False
+if not args.remove_long==None:
+    remove_longer_than=int(args.remove_long)
+    to_remove_long=True
 
 if args.stringFromFile:
     sfile=codecs.open(args.stringFromFile,"r",encoding="utf-8")
@@ -217,6 +236,16 @@ for linia in entrada:
     if args.norm_unicode and toWrite:
         slsegment=unicodedata.normalize("NFKC", slsegment)
         tlsegment=unicodedata.normalize("NFKC", tlsegment)
+        
+    if args.remove_non_latin:
+        slsegment=remove_non_latin_extended_chars(slsegment)
+        tlsegment=remove_non_latin_extended_chars(tlsegment)
+    if to_remove_long and toWrite:
+        if len(slsegment)>remove_longer_than:
+            toWrite=False
+        elif len(tlsegment)>remove_longer_than:
+            toWrite=False
+        
     if args.norm_apos and toWrite:
         slsegment=normalize_apos(slsegment)
         tlsegment=normalize_apos(tlsegment)
