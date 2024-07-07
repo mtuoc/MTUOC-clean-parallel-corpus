@@ -1,4 +1,4 @@
-#    MTUOC-clean-parallel-corpus
+º#    MTUOC-clean-parallel-corpus
 #    Copyright (C) 2024  Antoni Oliver
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ import unicodedata
 def remove_non_latin_extended_chars(text):
     # Define the pattern to match only allowed characters
     # This includes basic Latin letters, Latin Extended characters, spaces, and common punctuation marks
-    pattern = re.compile(r'[^A-Za-z\u00C0-\u00FF\u0100-\u024F\u1E00-\u1EFF\uA720-\uA7FF\s.,;!?\'"()\-]')
+    pattern = re.compile(r'[^0-9A-Za-z\u00C0-\u00FF\u0100-\u024F\u1E00-\u1EFF\uA720-\uA7FF\s.,;!?\'"()\-]')
     
     # Substitute non-matching characters with an empty string
     cleaned_text = pattern.sub('', text)
