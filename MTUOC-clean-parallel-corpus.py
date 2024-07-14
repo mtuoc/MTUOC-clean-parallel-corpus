@@ -191,7 +191,7 @@ parser.add_argument('-a','--all', action="store_true", dest="all", help='Perform
 parser.add_argument('--remove_control_characters', action='store_true', default=False, dest='remove_control_characters',help='Remove control characters.')
 parser.add_argument('--remove_non_printable', action='store_true', default=False, dest='remove_non_printable',help='Remove control characters.')
 parser.add_argument('--norm_apos', action='store_true', default=False, dest='norm_apos',help='Normalize apostrophes.')
-parser.add_argument('--norm_unicode', action='store_true', default=False, dest='norm_unicode',help='Normalize unicode characters to NFKC.')
+parser.add_argument('--norm_unicode', action='store_true', default=False, dest='norm_unicode',help='Normalize unicode characters to NFC.')
 parser.add_argument('--remove_tags', action='store_true', default=False, dest='remove_tags',help='Removes html/XML tags.')
 parser.add_argument('--unescape_html', action='store_true', default=False, dest='unescape_html',help='Unescapes html entities.')
 parser.add_argument('--fixencoding', action='store_true', default=False, dest='fixencoding',help='Tries to restore errors in encoding.')
@@ -288,8 +288,8 @@ for linia in entrada:
         slsegment=remove_tags(slsegment)
         tlsegment=remove_tags(tlsegment)
     if args.norm_unicode and toWrite:
-        slsegment=unicodedata.normalize("NFKC", slsegment)
-        tlsegment=unicodedata.normalize("NFKC", tlsegment)
+        slsegment=unicodedata.normalize("NFC", slsegment)
+        tlsegment=unicodedata.normalize("NFC", tlsegment)
     if args.check_weights and toWrite:
         if len(camps)<3 or not is_valid_float(camps[2]):
             toWrite=False
