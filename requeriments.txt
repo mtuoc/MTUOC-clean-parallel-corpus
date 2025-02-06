@@ -1,0 +1,4 @@
+langid
+bs4
+regex
+ftfy

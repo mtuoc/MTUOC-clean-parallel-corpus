@@ -1,5 +1,5 @@
 #    MTUOC-clean-parallel-corpus
-#    Copyright (C) 2024  Antoni Oliver
+#    Copyright (C) 2025  Antoni Oliver
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -14,18 +14,34 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#    Segmentation is performed using srx_segmenter: https://github.com/narusemotoki/srx_segmenter
+#    The code is copied into this script.
+
+import tkinter 
+from tkinter import *
+from tkinter import ttk
+from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import asksaveasfilename
+
+import itertools
 import codecs
-import re
 import sys
+
+import yaml
+from yaml import load, dump
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+###
+import re
 from xml.sax.saxutils import unescape
 import html
 import argparse
-
-#from bs4 import BeautifulSoup
-import re
 import regex as rx
 from ftfy import fix_encoding
 import unicodedata
+
 
 def remove_non_latin_extended_chars(text):
     # Define the pattern to match only allowed characters
@@ -184,210 +200,274 @@ def is_valid_float(s):
     except ValueError:
         return(False)
 
-parser = argparse.ArgumentParser(description='MTUOC program for cleaning tab separated parallel corpora.')
-parser.add_argument('-i','--in', action="store", dest="inputfile", help='The input file.',required=True)
-parser.add_argument('-o','--out', action="store", dest="outputfile", help='The output file.',required=True)
-parser.add_argument('-a','--all', action="store_true", dest="all", help='Performs default cleaning actions.')
-parser.add_argument('--remove_control_characters', action='store_true', default=False, dest='remove_control_characters',help='Remove control characters.')
-parser.add_argument('--remove_non_printable', action='store_true', default=False, dest='remove_non_printable',help='Remove control characters.')
-parser.add_argument('--norm_apos', action='store_true', default=False, dest='norm_apos',help='Normalize apostrophes.')
-parser.add_argument('--norm_unicode', action='store_true', default=False, dest='norm_unicode',help='Normalize unicode characters to NFC.')
-parser.add_argument('--remove_tags', action='store_true', default=False, dest='remove_tags',help='Removes html/XML tags.')
-parser.add_argument('--unescape_html', action='store_true', default=False, dest='unescape_html',help='Unescapes html entities.')
-parser.add_argument('--fixencoding', action='store_true', default=False, dest='fixencoding',help='Tries to restore errors in encoding.')
-parser.add_argument('--remove_empty', action='store_true', default=False, dest='remove_empty',help='Removes segments with empty SL or TL segments.')
-parser.add_argument('--remove_short', action='store', default=False, dest='remove_short',help='Removes segments with less than the given number of characters.')
-parser.add_argument('--remove_equal', action='store_true', default=False, dest='remove_equal',help='Removes segments with equal SL or TL segments.')
-parser.add_argument('--remove_NUMPC', action='store', default=False, dest='remove_NUMPC',help='Removes segments with a percent of numbers higher than the given.')
-parser.add_argument('--remove_URLPC', action='store', default=False, dest='remove_URLPC',help='Removes segments with a percent of URLs higher than the given.')
-parser.add_argument('--remove_URL', action='store_true', default=False, dest='remove_URL',help='Removes segments with URLs.')
-parser.add_argument('--remove_long', action='store', dest='remove_long', type=int, help='Removes segments with more characters than the given number.')
-parser.add_argument('--remove_non_latin', action='store_true', default=False, dest='remove_non_latin', help='Removes chars outside the latin extended.')
-parser.add_argument('--remove_non_script', action='store_true', default=False, dest='remove_non_script', help='Removes chars outside the Unicode script chars.')
-parser.add_argument('--check_weights', action='store_true', dest='check_weights', help='Removes segments not having a valid weight.')
-
-parser.add_argument('--escapeforMoses', action='store_true', default=False, dest='escapeforMoses',help='Replaces [ ] and | with entities.')
-parser.add_argument('--stringFromFile', action='store', default=False, dest='stringFromFile',help='Removes segments containing strings from the given file (one string per line).')
-parser.add_argument('--regexFromFile', action='store', default=False, dest='regexFromFile',help='Removes segments matching regular expressions from the given file (one regular expression per line).')
-parser.add_argument('--vSL', action='store', default=False, dest='vSL',help='Verify language of source language segments.')
-parser.add_argument('--vTL', action='store', default=False, dest='vTL',help='Verify language of target language segments.')
-parser.add_argument('--vSetLanguages', action='store', default=False, dest='vSetLanguages',help='Set the possible languages (separated by ",". For example: en,es,fr,ru,ar,zh.)')
-parser.add_argument('--vTNOTL', action='store', default=False, dest='vTNOTL',help='Verify target language not being a given one (to avoid having SL in TL, for example).')
-parser.add_argument('--noUPPER', action='store_true', default=False, dest='noUPPER',help='Deletes the segment if it is uppercased (either source or target segment).')
-parser.add_argument('--verbose', action='store_true', default=False, dest='verbose',help='If set, shows the actions on standard output.')
-
-args = parser.parse_args()
-
-if args.all:
-    args.remove_control_characters=True
-    args.remove_non_printable=True
-    #args.norm_apos=True
-    args.norm_unicode=True
-    args.remove_tags=True
-    args.unescape_html=True
-    args.fixencoding=True
-    args.remove_empty=True
-    args.remove_equal=True
-    if not args.remove_NUMPC: args.remove_NUMPC=60
-    if not args.remove_short: args.remove_short=5
-    if not args.remove_URLPC: args.remove_URLPC=10
-entrada=codecs.open(args.inputfile,"r",encoding="utf-8")
-sortida=codecs.open(args.outputfile,"w",encoding="utf-8")
+###
 
 
-to_remove_long=False
-if not args.remove_long==None:
-    remove_longer_than=int(args.remove_long)
-    to_remove_long=True
+def select_input_file():
+    global E1
+    infile = askopenfilename(initialdir = ".",filetypes =(("txt files","*.txt"),("All Files","*.*")),
+                           title = "Select the input file.")
+    E1.delete(0,END)
+    E1.insert(0,infile)
+    E1.xview_moveto(1)
+    
+def select_output_file():
+    global E2
+    infile = asksaveasfilename(initialdir = ".",filetypes =(("txt files","*.txt"),("All Files","*.*")),
+                           title = "Select the output file.")
+    E2.delete(0,END)
+    E2.insert(0,infile)
+    E2.xview_moveto(1)
 
-if args.stringFromFile:
-    sfile=codecs.open(args.stringFromFile,"r",encoding="utf-8")
-    remlist=[]
-    for lsfile in sfile:
-        lsfile=lsfile.rstrip()
-        remlist.append(lsfile)
-        
-if args.regexFromFile:
-    regfile=codecs.open(args.regexFromFile,"r",encoding="utf-8")
-    reglist=[]
-    for lsfile in regfile:
-        lsfile=lsfile.rstrip()
-        reglist.append(lsfile)
+def select_config_file():
+    global E3
+    infile = askopenfilename(initialdir = ".",filetypes =(("yaml files","*.yaml"),("All Files","*.*")),
+                           title = "Select the config file.")
+    E3.delete(0,END)
+    E3.insert(0,infile)
+    E3.xview_moveto(1)
 
-if args.vSL or args.vTL or args.vSetLanguages:
-    import langid
+def go(configfile=None,inputfile=None,outputfile=None):
+    if configfile==None:
+        global E3
+        configfile=E3.get()
+    if inputfile==None:
+        global E1
+        inputfile=E1.get()
+    if outputfile==None:
+        global E2
+        outputfile=E2.get()
+    stream = open(configfile, 'r',encoding="utf-8")
+    configYAML=yaml.load(stream, Loader=yaml.FullLoader)
 
-if args.vSetLanguages:
-    toset=[]
-    for l in args.vSetLanguages.split(","):
-        toset.append(l)
-    langid.set_languages(toset)
+    remove_control_charactersA=configYAML["remove_control_characters"]
+    remove_non_printableA=configYAML["remove_non_printable"]
+    norm_aposA=configYAML["norm_apos"]
+    norm_unicodeA=configYAML["norm_unicode"]
+    remove_tagsA=configYAML["remove_tags"]
+    unescape_htmlA=configYAML["unescape_html"]
+    fixencodingA=configYAML["fixencoding"]
+    remove_emptyA=configYAML["remove_empty"]
+    remove_shortA=configYAML["remove_short"]
+    remove_equalA=configYAML["remove_equal"]
+    remove_NUMPCA=configYAML["remove_NUMPC"]
+    remove_URLPCA=configYAML["remove_URLPC"]
+    remove_URLA=configYAML["remove_URL"]
+    remove_longA=configYAML["remove_long"]
+    remove_non_latinA=configYAML["remove_non_latin"]
+    remove_non_scriptA=configYAML["remove_non_script"]
+    check_weightsA=configYAML["check_weights"]
+    escapeforMosesA=configYAML["escapeforMoses"]
+    stringFromFileA=configYAML["stringFromFile"]
+    regexFromFileA=configYAML["regexFromFile"]
+    vSLA=configYAML["vSL"]
+    vTLA=configYAML["vTL"]
+    vSetLanguagesA=configYAML["vSetLanguages"]
+    vTNOTLA=configYAML["vTNOTL"]
+    noUPPERA=configYAML["noUPPER"]
+    verbose=configYAML["verbose"]
+    
+    ####
+    entrada=codecs.open(inputfile,"r",encoding="utf-8")
+    sortida=codecs.open(outputfile,"w",encoding="utf-8")
 
-for linia in entrada:
-    toWrite=True
-    linia=linia.strip()
-    camps=linia.split("\t")
-    if len(camps)>=1:
-        slsegment=camps[0]
-        tlsegment=""
-    if len(camps)>=2:
-        tlsegment=camps[1]
-    if args.remove_control_characters:
-        slsegment=remove_control_characters(slsegment)
-        tlsegment=remove_control_characters(tlsegment) 
-    if args.remove_non_printable:
-        slsegment=remove_non_printable(slsegment)
-        tlsegment=remove_non_printable(tlsegment)
-    if args.unescape_html and toWrite:
-        slsegment=unescape_html(slsegment)
-        tlsegment=unescape_html(tlsegment)
-    if args.fixencoding:
-        slsegment=fix_encoding(slsegment)
-        tlsegment=fix_encoding(tlsegment)
-    if args.remove_tags and toWrite:
-        slsegment=remove_tags(slsegment)
-        tlsegment=remove_tags(tlsegment)
-    if args.norm_unicode and toWrite:
-        slsegment=unicodedata.normalize("NFC", slsegment)
-        tlsegment=unicodedata.normalize("NFC", tlsegment)
-    if args.check_weights and toWrite:
-        if len(camps)<3 or not is_valid_float(camps[2]):
-            toWrite=False
-        
-    if args.remove_non_latin:
-        slsegment=remove_non_latin_extended_chars(slsegment)
-        tlsegment=remove_non_latin_extended_chars(tlsegment)
-    if args.remove_non_script:
-        slsegment=remove_non_unicode_script_chars(slsegment)
-        tlsegment=remove_non_unicode_script_chars(tlsegment)
-    if to_remove_long and toWrite:
-        if len(slsegment)>remove_longer_than:
-            toWrite=False
-        elif len(tlsegment)>remove_longer_than:
-            toWrite=False
-        
-    if args.norm_apos and toWrite:
-        slsegment=normalize_apos(slsegment)
-        tlsegment=normalize_apos(tlsegment)
-    if args.remove_empty and toWrite:
-        if remove_empty(slsegment,tlsegment): toWrite=False
-    if args.remove_short and toWrite:
-        if remove_short(slsegment,args.remove_short): toWrite=False
-    if args.remove_short and toWrite:
-        if remove_short(slsegment,args.remove_short): toWrite=False
-        if remove_short(tlsegment,args.remove_short): toWrite=False
-    if args.remove_equal and toWrite:
-        if remove_equal(slsegment,tlsegment): toWrite=False
-    if args.remove_NUMPC and toWrite:
-        if percentNUM(slsegment)>=float(args.remove_NUMPC):
-            toWrite=False
-        elif percentNUM(tlsegment)>=float(args.remove_NUMPC):
-            toWrite=False
+
+    to_remove_long=False
+    if not remove_longA==False:
+        remove_longer_than=int(remove_long)
+        to_remove_long=True
+
+    if stringFromFileA:
+        sfile=codecs.open(stringFromFile,"r",encoding="utf-8")
+        remlist=[]
+        for lsfile in sfile:
+            lsfile=lsfile.rstrip()
+            remlist.append(lsfile)
             
-    if args.remove_URLPC and toWrite:
-        if percentURLPC(slsegment)>=float(args.remove_NUMPC):
-            toWrite=False
-        elif percentURLPC(tlsegment)>=float(args.remove_NUMPC):
-            toWrite=False
-    if args.remove_URL and toWrite:
-        urlsSL=findURLs(slsegment)
-        urlsTL=findURLs(tlsegment)
-        if len(urlsSL)>0 or len(urlsTL)>0:
-            toWrite=False
-        
-        
-            
-    if args.escapeforMoses and toWrite:
-        slsegment=escapeforMoses(slsegment)
-        tlsegment=escapeforMoses(tlsegment)
-    if args.vSL and toWrite:
-        (lang,logpercent)=langid.classify(slsegment)
-        if not args.vSL==lang:
-                toWrite=False
-                if args.verbose: print("SOURCE NOT MATCHING:",args.vSL,lang,slsegment)
+    if regexFromFileA:
+        regfile=codecs.open(regexFromFile,"r",encoding="utf-8")
+        reglist=[]
+        for lsfile in regfile:
+            lsfile=lsfile.rstrip()
+            reglist.append(lsfile)
 
-    if args.vTL and toWrite:
-        (lang,logpercent)=langid.classify(tlsegment)
-        if not args.vTL==lang:
-                toWrite=False
-                if args.verbose: print("TARGET NOT MATCHING:",args.vTL,lang,tlsegment)
-            
-    if args.vTNOTL and toWrite:
-        (lang,logpercent)=langid.classify(tlsegment)
-        if args.vTNOTL==lang:
-                toWrite=False
-                if args.verbose: print("TARGET MATCHING:",args.vTNOTL,lang,tlsegment)
-        
+    if vSLA or vTLA or vSetLanguagesA:
+        import langid
 
-    if args.noUPPER and toWrite:
-        if slsegment==slsegment.upper():
-            toWrite=False
-            if args.verbose: print("DELETE UPPER:",slsegment)
-        if tlsegment==tlsegment.upper():
-            toWrite=False
-            if args.verbose: print("DELETE UPPER:",tlsegment)
+    if vSetLanguagesA:
+        toset=[]
+        for l in vSetLanguagesA.split(","):
+            toset.append(l)
+        langid.set_languages(toset)
+
+    for linia in entrada:
+        toWrite=True
+        linia=linia.strip()
+        camps=linia.split("\t")
+        if len(camps)>=1:
+            slsegment=camps[0]
+            tlsegment=""
+        if len(camps)>=2:
+            tlsegment=camps[1]
+        if remove_control_charactersA:
+            slsegment=remove_control_characters(slsegment)
+            tlsegment=remove_control_characters(tlsegment) 
+        if remove_non_printableA:
+            slsegment=remove_non_printable(slsegment)
+            tlsegment=remove_non_printable(tlsegment)
+        if unescape_htmlA and toWrite:
+            slsegment=unescape_html(slsegment)
+            tlsegment=unescape_html(tlsegment)
+        if fixencodingA and  toWrite:
+            slsegment=fix_encoding(slsegment)
+            tlsegment=fix_encoding(tlsegment)
+        if remove_tagsA and toWrite:
+            slsegment=remove_tags(slsegment)
+            tlsegment=remove_tags(tlsegment)
+        if norm_unicodeA and toWrite:
+            slsegment=unicodedata.normalize("NFC", slsegment)
+            tlsegment=unicodedata.normalize("NFC", tlsegment)
+        if check_weightsA and toWrite:
+            if len(camps)<3 or not is_valid_float(camps[2]):
+                toWrite=False
+            
+        if remove_non_latinA:
+            slsegment=remove_non_latin_extended_chars(slsegment)
+            tlsegment=remove_non_latin_extended_chars(tlsegment)
+        if remove_non_scriptA:
+            slsegment=remove_non_unicode_script_chars(slsegment)
+            tlsegment=remove_non_unicode_script_chars(tlsegment)
+        if to_remove_long and toWrite:
+            if len(slsegment)>remove_longer_than:
+                toWrite=False
+            elif len(tlsegment)>remove_longer_than:
+                toWrite=False
+            
+        if norm_aposA and toWrite:
+            slsegment=normalize_apos(slsegment)
+            tlsegment=normalize_apos(tlsegment)
+        if remove_emptyA and toWrite:
+            if remove_empty(slsegment,tlsegment): toWrite=False
+        if remove_shortA > -1 and toWrite:
+            if remove_short(slsegment,remove_shortA): toWrite=False
+            if remove_short(tlsegment,remove_shortA): toWrite=False
+        if remove_equalA and toWrite:
+            if remove_equal(slsegment,tlsegment): toWrite=False
+        if remove_NUMPCA and toWrite:
+            if percentNUM(slsegment)>=float(remove_NUMPCA):
+                toWrite=False
+            elif percentNUM(tlsegment)>=float(remove_NUMPCA):
+                toWrite=False
                 
-    if args.stringFromFile and toWrite:
-        for rmstring in remlist:
-            if slsegment.find(rmstring)>-1:
+        if remove_URLPCA and toWrite:
+            if percentURLPC(slsegment)>=float(remove_NUMPCA):
                 toWrite=False
-                break
-            if tlsegment.find(rmstring)>-1:
+            elif percentURLPC(tlsegment)>=float(remove_NUMPCA):
                 toWrite=False
-                break
+        if remove_URLA and toWrite:
+            urlsSL=findURLs(slsegment)
+            urlsTL=findURLs(tlsegment)
+            if len(urlsSL)>0 or len(urlsTL)>0:
+                toWrite=False
+            
+            
                 
-    if args.regexFromFile and toWrite:
-        for regex in reglist:
-            pattern = re.compile(regex)
-            if pattern.search(slsegment):
+        if escapeforMosesA and toWrite:
+            slsegment=escapeforMoses(slsegment)
+            tlsegment=escapeforMoses(tlsegment)
+        if vSLA and toWrite:
+            (lang,logpercent)=langid.classify(slsegment)
+            if not vSLA==lang:
+                    toWrite=False
+                    if verbose: print("SOURCE NOT MATCHING:",vSLA,lang,slsegment)
+
+        if vTLA and toWrite:
+            (lang,logpercent)=langid.classify(tlsegment)
+            if not vTLA==lang:
+                    toWrite=False
+                    if verbose: print("TARGET NOT MATCHING:",vTLA,lang,tlsegment)
+                
+        if vTNOTLA and toWrite:
+            (lang,logpercent)=langid.classify(tlsegment)
+            if vTNOTLA==lang:
+                    toWrite=False
+                    if verbose: print("TARGET MATCHING:",vTNOTL,lang,tlsegment)
+            
+
+        if noUPPERA and toWrite:
+            if slsegment==slsegment.upper():
                 toWrite=False
-                break
-            if pattern.search(tlsegment):
+                if verbose: print("DELETE UPPER:",slsegment)
+            if tlsegment==tlsegment.upper():
                 toWrite=False
-    if toWrite:
-        if len(camps)==2:
-            cadena=slsegment+"\t"+tlsegment
-        elif len(camps)>2:
-            cadena=slsegment+"\t"+tlsegment+"\t"+"\t".join(camps[2:])
-        sortida.write(cadena+"\n")
+                if verbose: print("DELETE UPPER:",tlsegment)
+                    
+        if stringFromFileA and toWrite:
+            for rmstring in remlist:
+                if slsegment.find(rmstring)>-1:
+                    toWrite=False
+                    break
+                if tlsegment.find(rmstring)>-1:
+                    toWrite=False
+                    break
+                    
+        if regexFromFileA and toWrite:
+            for regex in reglist:
+                pattern = re.compile(regex)
+                if pattern.search(slsegment):
+                    toWrite=False
+                    break
+                if pattern.search(tlsegment):
+                    toWrite=False
+        if toWrite:
+            if len(camps)==2:
+                cadena=slsegment+"\t"+tlsegment
+            elif len(camps)>2:
+                cadena=slsegment+"\t"+tlsegment+"\t"+"\t".join(camps[2:])
+            sortida.write(cadena+"\n")
         
+
+    
+
+def launch_gui():
+    top = Tk()
+    top.title("MTUOC-clean-parallel-corpus")
+    global E1
+    global E2
+    global E3
+    
+    B1=tkinter.Button(top, text = str("Select input file"), borderwidth = 1, command=select_input_file,width=14).grid(row=0,column=0)
+    E1 = tkinter.Entry(top, bd = 5, width=60, justify="right")
+    E1.grid(row=0,column=1)
+
+    B2=tkinter.Button(top, text = str("Select output file"), borderwidth = 1, command=select_output_file,width=14).grid(row=1,column=0)
+    E2 = tkinter.Entry(top, bd = 5, width=60, justify="right")
+    E2.grid(row=1,column=1)
+    
+    B3=tkinter.Button(top, text = str("Select config file"), borderwidth = 1, command=select_config_file,width=14).grid(row=2,column=0)
+    E3 = tkinter.Entry(top, bd = 5, width=60, justify="right")
+    E3.grid(row=2,column=1)
+
+    B2=tkinter.Button(top, text = str("Clean!"), borderwidth = 1, command=go,width=14).grid(sticky="W",row=3,column=0)
+
+    top.mainloop()
+    
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # No parameters, start the GUI
+        launch_gui()
+    else:
+        # Parameters provided, perform the action
+        if len(sys.argv)<4:
+            print("ERROR: wrong number of parameters given.")
+            print("USAGE:")
+            print("    Give no parameters to start the GUI or:")
+            print("    python MTUOC-clean-parallel-corpus.py config.yaml inputcorpus cleanedcorpus")
+        else:
+            go(sys.argv[1],sys.argv[2],sys.argv[3])
+
+
+
+
+
+

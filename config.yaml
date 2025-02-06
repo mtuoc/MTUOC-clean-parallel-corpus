@@ -1,0 +1,30 @@
+remove_control_characters: True
+remove_non_printable: True
+norm_apos: False
+norm_unicode: True
+remove_tags: True
+unescape_html: True
+fixencoding: True
+remove_empty: True
+remove_short: 10
+remove_equal: True
+remove_NUMPC: 60
+remove_URLPC: 60
+remove_URL: False
+remove_long: False
+#False or int
+remove_non_latin: False
+remove_non_script: False
+check_weights: False
+escapeforMoses: False
+stringFromFile: False
+regexFromFile: False
+vSL: en
+#False or language code en es fr ...
+vTL: es
+#False or language code en es fr ...
+vSetLanguages: False
+#False or list separated by ,: en,fr,es
+vTNOTL: False
+noUPPER: False
+verbose: True
