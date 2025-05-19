@@ -17,12 +17,14 @@
 #    Segmentation is performed using srx_segmenter: https://github.com/narusemotoki/srx_segmenter
 #    The code is copied into this script.
 
-import tkinter 
-from tkinter import *
-from tkinter import ttk
-from tkinter.filedialog import askopenfilename
-from tkinter.filedialog import asksaveasfilename
-
+try:
+    import tkinter 
+    from tkinter import *
+    from tkinter import ttk
+    from tkinter.filedialog import askopenfilename
+    from tkinter.filedialog import asksaveasfilename
+except:
+    pass
 import itertools
 import codecs
 import sys
